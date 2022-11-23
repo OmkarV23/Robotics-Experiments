@@ -1,59 +1,58 @@
-clear all;
-close all
-
-links = [
-        Revolute('d', 0.27,        'a', 0.069, 'alpha', -pi/2)
-        Revolute('d', 0,           'a', 0, 'alpha', pi/2, 'offset', pi/2)
-        Revolute('d', 0.102+0.262, 'a', 0.069, 'alpha', -pi/2)
-        Revolute('d', 0,           'a', 0, 'alpha', pi/2)
-        Revolute('d', 0.103+0.271, 'a', 0.010, 'alpha', -pi/2)
-        Revolute('d', 0,           'a', 0, 'alpha', pi/2)
-        Revolute('d', 0.28,        'a', 0, 'alpha', 0)
-];
-
-left =  SerialLink(links, 'name', 'Baxter LEFT');
-right = SerialLink(links, 'name', 'Baxter RIGHT');
-
-left.base = transl(0.064614, 0.25858, 0.119)*rpy2tr(0, 0, pi/4, 'xyz');
-right.base = transl(0.063534, -0.25966, 0.119)*rpy2tr(0, 0, -pi/4, 'xyz');
-
-%%
-% qz = [0 0 0 0 0 0 0]; % zero angles, L shaped pose
-% qr = [0 -pi/2 -pi/2 0 0 0 0]; % ready pose, arm up
-% qs = [0 0 -pi/2 0 0 0];
-% qn = [0 pi/4 pi/2 0 pi/4 0];
-% 
-% q = qz;
-%%
-% p = [0.476,0.408,1.168;0.005,0.271,1.227];
-p_left = [0.476,0.408,1.168;-0.479,0.727,0.489];
-p_right = [0.476,-0.408,1.168;-0.479,-0.727,0.489];
-% p_right = [0.746,-0.920,0.139;0.803,-0.254,0.361];
-% p=[1.152,0.256,0.310];
-Trans_left = transl(p_left); %* troty(pi);
-Trans_right = transl(p_right);
-TT_l = SE3.convert(Trans_left);
-TT_r = SE3.convert(Trans_right);
-q0_l = zeros(1, 7);
-q0_r = zeros(1, 7);
-for i=1:length(TT_l)
-    T_l = TT_l(i);
-    T_r = TT_r(i);
-    q_inv_left = ikine(left,T_l,'q0',q0_l);%,'rlimit',1000,'ilimit',10000);
-    q_inv_right = ikine(right,T_r,'q0',q0_r);%,'rlimit',1000,'ilimit',10000);
-    qtg_l = jtraj(q0_l,q_inv_left,5);
-    qtg_r = jtraj(q0_r,q_inv_right,5);
-    [m,n] = size(qtg_l');
-    for j=1:n
-        left.plot(qtg_l(j,:));
-        hold on
-        right.plot(qtg_r(j,:));
+classdef baxter_robot
+    methods (Static)
+        function [links,baxter_left,baxter_right] = create_robot()
+            links = [
+                    Revolute('d', 0.27,        'a', 0.069, 'alpha', -pi/2)
+                    Revolute('d', 0,           'a', 0, 'alpha', pi/2, 'offset', pi/2)
+                    Revolute('d', 0.102+0.262, 'a', 0.069, 'alpha', -pi/2)
+                    Revolute('d', 0,           'a', 0, 'alpha', pi/2)
+                    Revolute('d', 0.103+0.271, 'a', 0.010, 'alpha', -pi/2)
+                    Revolute('d', 0,           'a', 0, 'alpha', pi/2)
+                    Revolute('d', 0.28,        'a', 0, 'alpha', 0)
+            ]; 
+                    baxter_left =  SerialLink(links, 'name', 'Baxter LEFT');
+                    baxter_right = SerialLink(links, 'name', 'Baxter RIGHT');
+        end
+        function set_base(baxter_left,baxter_right)
+            baxter_left.base = transl(0.064614, 0.25858, 0.119)*rpy2tr(0, 0, pi/4, 'xyz');
+            baxter_right.base = transl(0.063534, -0.25966, 0.119)*rpy2tr(0, 0, -pi/4, 'xyz');           
+        end
+        function teach(left,right)
+            figure(1)
+            left.teach()
+            figure(2)
+            right.teach()
+        end
+        function invkin(baxter_left,baxter_right,end_pose,init_pose)
+            init_left = cell2mat(init_pose(1));
+            init_right = cell2mat(init_pose(2));
+            end_left = cell2mat(end_pose(1));
+            end_right = cell2mat(end_pose(2));
+            Trans_left = transl(end_left);
+            Trans_right = transl(end_right);
+            TT_l = SE3.convert(Trans_left);
+            TT_r = SE3.convert(Trans_right);
+            for i=1:length(TT_l)
+                T_l = TT_l(i);
+                T_r = TT_r(i);
+                q_inv_left = ikine(baxter_left,T_l,'q0',init_left,'rlimit',1000,'ilimit',10000);
+                q_inv_right = ikine(baxter_right,T_r,'q0',init_right,'rlimit',1000,'ilimit',10000);
+                qtg_l = jtraj(init_left,q_inv_left,5);
+                qtg_r = jtraj(init_right,q_inv_right,5);
+                [~,n] = size(qtg_l');
+                for j=1:n
+                    baxter_left.plot(qtg_l(j,:));
+                    hold on
+                    baxter_right.plot(qtg_r(j,:));
+                end
+                init_left = q_inv_left;
+                init_right = q_inv_right;
+            %     left.teach(q_inv)
+            end
+    
+        end
     end
-    q0_l = q_inv_left;
-    q0_r = q_inv_right;
-%     left.teach(q_inv)
 end
-% right.teach()
 
 
 
