@@ -1,2 +1,2 @@
-# baxter
-Baxter inverse kinematics using Robotics toolbox
+# Robotics-Experiments
+Experimenting with robotics topics
